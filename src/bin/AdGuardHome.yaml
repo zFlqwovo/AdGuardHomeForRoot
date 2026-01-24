@@ -23,19 +23,16 @@ dns:
   ratelimit_whitelist: []
   refuse_any: true
   upstream_dns:
-    - https://doh.pub/dns-query
-    - https://dns.alidns.com/dns-query
-  upstream_dns_file: ""
+    - '# https://dns.alidns.com/dns-query'
+  upstream_dns_file: /data/adb/agh/bin/data/FAK-DNS.txt
   bootstrap_dns:
-    - 119.29.29.29
     - 223.5.5.5
+    - 2400:3200::1
     - 223.6.6.6
-    - 1.1.1.1
-    - 8.8.8.8
-  fallback_dns:
-    - https://dns.google/dns-query
-    - https://cloudflare-dns.com/dns-query
-  upstream_mode: load_balance
+    - 119.29.29.29
+    - '2402:4e00::'
+  fallback_dns: []
+  upstream_mode: parallel
   fastest_timeout: 1s
   allowed_clients: []
   disallowed_clients: []
@@ -47,15 +44,15 @@ dns:
     - 127.0.0.0/8
     - ::1/128
   cache_enabled: true
-  cache_size: 67108864
-  cache_ttl_min: 0
-  cache_ttl_max: 0
+  cache_size: 33554432
+  cache_ttl_min: 300
+  cache_ttl_max: 3600
   cache_optimistic: true
   cache_optimistic_answer_ttl: 30s
   cache_optimistic_max_age: 12h
   bogus_nxdomain: []
   aaaa_disabled: false
-  enable_dnssec: false
+  enable_dnssec: true
   edns_client_subnet:
     custom_ip: ""
     enabled: true
@@ -65,14 +62,14 @@ dns:
   ipset: []
   ipset_file: ""
   bootstrap_prefer_ipv6: false
-  upstream_timeout: 10s
+  upstream_timeout: 3s
   private_networks: []
   use_private_ptr_resolvers: false
   local_ptr_upstreams: []
   use_dns64: false
   dns64_prefixes: []
   serve_http3: false
-  use_http3_upstreams: false
+  use_http3_upstreams: true
   serve_plain_dns: true
   hostsfile_enabled: true
   pending_requests:
@@ -95,20 +92,24 @@ tls:
 querylog:
   dir_path: ""
   ignored: []
-  interval: 24h
+  interval: 6h
   size_memory: 1000
   enabled: true
   file_enabled: true
 statistics:
   dir_path: ""
   ignored: []
-  interval: 24h
+  interval: 2160h
   enabled: true
 filters:
   - enabled: true
-    url: https://raw.githubusercontent.com/TG-Twilight/AWAvenue-Ads-Rule/main/AWAvenue-Ads-Rule.txt
-    name: AWAvenue
-    id: 1732747955
+    url: https://gh.2719233.xyz/https://raw.githubusercontent.com/TG-Twilight/AWAvenue-Ads-Rule/main/AWAvenue-Ads-Rule.txt
+    name: 秋风广告规则
+    id: 1769202448
+  - enabled: true
+    url: https://easylist.to/easylist/easyprivacy.txt
+    name: EasyPrivacy
+    id: 1769202449
 whitelist_filters: []
 user_rules:
   - ""
@@ -146,7 +147,7 @@ filtering:
     pixabay: true
     yandex: true
     youtube: true
-  blocking_mode: default
+  blocking_mode: nxdomain
   parental_block_host: family-block.dns.adguard.com
   safebrowsing_block_host: standard-block.dns.adguard.com
   rewrites: []
@@ -155,7 +156,7 @@ filtering:
   safesearch_cache_size: 1048576
   parental_cache_size: 1048576
   cache_time: 30
-  filters_update_interval: 72
+  filters_update_interval: 1
   blocked_response_ttl: 10
   filtering_enabled: true
   rewrites_enabled: true

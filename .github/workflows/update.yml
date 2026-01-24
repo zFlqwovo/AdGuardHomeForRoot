@@ -1,0 +1,72 @@
+name: Auto Update AdGuardHome Rule
+
+on:
+  schedule:
+    - cron: '0 23 * * *'
+  workflow_dispatch:
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check Upstream
+        id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          URL: "https://raw.githubusercontent.com/zFlqwovo/FAK-DNS/refs/heads/master/converted/FAK-DNS.txt"
+        run: |
+          NEW_HASH=$(curl -sL "$URL" | sha256sum | awk '{print $1}')
+          LAST_HASH=$(gh release view --json body -q .body | grep -oP '<!-- rule_hash: \K\w+' || true)
+
+          if [[ "$NEW_HASH" != "$LAST_HASH" || "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "update=true" >> $GITHUB_OUTPUT
+            echo "hash=$NEW_HASH" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Bump Version & Build
+        if: steps.check.outputs.update == 'true'
+        run: |
+          git config --global user.name "GitHub Action"
+          git config --global user.email "action@github.com"
+
+          TODAY=$(date +%Y%m%d)
+          jq --arg v "$TODAY" '.versionCode += 1 | .version = $v' version.json > v.tmp && mv v.tmp version.json
+          CODE=$(jq -r .versionCode version.json)
+
+          sed -i "s/^version=.*/version=$TODAY/" src/module.prop
+          sed -i "s/^versionCode=.*/versionCode=$CODE/" src/module.prop
+
+          git commit -am "Auto update to $TODAY (Code: $CODE)"
+          git push
+
+          bash build.sh
+
+          echo "TAG=$TODAY" >> $GITHUB_ENV
+          echo "CODE=$CODE" >> $GITHUB_ENV
+
+      - name: Create Release
+        if: steps.check.outputs.update == 'true'
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ env.TAG }}
+          name: AdGuardHome Update ${{ env.TAG }}
+          files: |
+            output/*.zip
+            output/checksums.txt
+          body: |
+            ## 🔔 Upstream Rule Updated
+            
+            - **Version:** ${{ env.TAG }} (Code: ${{ env.CODE }})
+            - **Time:** $(date "+%Y-%m-%d %H:%M:%S")
+            - **Rule Hash:** `${{ steps.check.outputs.hash }}`
+            
+            ### Checksums (SHA256)
+            ```text
+            $(cat output/checksums.txt)
+            ```
+            <!-- rule_hash: ${{ steps.check.outputs.hash }} -->
