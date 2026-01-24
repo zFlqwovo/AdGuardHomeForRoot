@@ -49,6 +49,10 @@ jobs:
           echo "TAG=$TODAY" >> $GITHUB_ENV
           echo "CODE=$CODE" >> $GITHUB_ENV
 
+          echo "CHECKSUMS<<EOF" >> $GITHUB_ENV
+          cat output/checksums.txt >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
       - name: Create Release
         if: steps.check.outputs.update == 'true'
         uses: softprops/action-gh-release@v1
@@ -67,6 +71,6 @@ jobs:
             
             ### Checksums (SHA256)
             ```text
-            $(cat output/checksums.txt)
+            ${{ env.CHECKSUMS }}
             ```
             <!-- rule_hash: ${{ steps.check.outputs.hash }} -->
