@@ -10,7 +10,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-
     steps:
       - uses: actions/checkout@v4
 
@@ -20,31 +19,50 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           URL: "https://raw.githubusercontent.com/zFlqwovo/FAK-DNS/refs/heads/master/converted/FAK-DNS.txt"
         run: |
-          NEW_HASH=$(curl -sL "$URL" | sha256sum | awk '{print $1}')
-          LAST_HASH=$(gh release view --json body -q .body | grep -oP '<!-- rule_hash: \K\w+' || true)
+          NEW_HASH=$(curl -sfL "$URL" | sha256sum | awk '{print $1}')
+          
+          LAST_HASH=$(gh release view --json body -q .body 2>/dev/null | grep -oP '<!-- rule_hash: \K\w+' || echo "")
 
-          if [[ "$NEW_HASH" != "$LAST_HASH" || "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+          echo "New Hash: $NEW_HASH"
+          echo "Old Hash: $LAST_HASH"
+
+          if [[ -n "$NEW_HASH" && "$NEW_HASH" != "$LAST_HASH" ]] || [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             echo "update=true" >> $GITHUB_OUTPUT
             echo "hash=$NEW_HASH" >> $GITHUB_OUTPUT
+          else
+            echo "No update needed."
           fi
 
-      - name: Bump Version & Build
+      - name: Build & Package
+        if: steps.check.outputs.update == 'true'
+        run: |
+          bash build.sh
+          
+          if [ ! -s "output/checksums.txt" ]; then
+            echo "Error: Build failed or checksums.txt is empty."
+            exit 1
+          fi
+
+      - name: Bump Version & Commit
         if: steps.check.outputs.update == 'true'
         run: |
           git config --global user.name "GitHub Action"
           git config --global user.email "action@github.com"
 
           TODAY=$(date +%Y%m%d)
+          
+          if [ ! -f version.json ]; then echo '{"versionCode": 0, "version": ""}' > version.json; fi
+          
           jq --arg v "$TODAY" '.versionCode += 1 | .version = $v' version.json > v.tmp && mv v.tmp version.json
           CODE=$(jq -r .versionCode version.json)
 
-          sed -i "s/^version=.*/version=$TODAY/" src/module.prop
-          sed -i "s/^versionCode=.*/versionCode=$CODE/" src/module.prop
+          sed -i "s/^version=.*/version=$TODAY/" src/module.prop || true
+          sed -i "s/^versionCode=.*/versionCode=$CODE/" src/module.prop || true
 
-          git commit -am "Auto update to $TODAY (Code: $CODE)"
+          # 提交代码 (仅提交变更文件)
+          git add version.json src/module.prop
+          git commit -m "Auto update to $TODAY (Code: $CODE)"
           git push
-
-          bash build.sh
 
           echo "TAG=$TODAY" >> $GITHUB_ENV
           echo "CODE=$CODE" >> $GITHUB_ENV
