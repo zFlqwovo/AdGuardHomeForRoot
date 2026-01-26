@@ -5,6 +5,10 @@ on:
     - cron: '0 23 * * *'
   workflow_dispatch:
 
+env:
+  UPSTREAM_URL: "https://raw.githubusercontent.com/zFlqwovo/FAK-DNS/refs/heads/master/converted/FAK-DNS.txt"
+  TZ: Asia/Shanghai
+
 jobs:
   update:
     runs-on: ubuntu-latest
@@ -13,65 +17,56 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Check Upstream
+      - name: Check Update
         id: check
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          URL: "https://raw.githubusercontent.com/zFlqwovo/FAK-DNS/refs/heads/master/converted/FAK-DNS.txt"
         run: |
-          NEW_HASH=$(curl -sfL "$URL" | sha256sum | awk '{print $1}')
+          NEW_HASH=$(curl -sfL "$UPSTREAM_URL" | sha256sum | awk '{print $1}')
+          if [ -f .upstream_hash ]; then OLD_HASH=$(cat .upstream_hash); else OLD_HASH=""; fi
           
-          LAST_HASH=$(gh release view --json body -q .body 2>/dev/null | grep -oP '<!-- rule_hash: \K\w+' || echo "")
-
-          echo "New Hash: $NEW_HASH"
-          echo "Old Hash: $LAST_HASH"
-
-          if [[ -n "$NEW_HASH" && "$NEW_HASH" != "$LAST_HASH" ]] || [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+          if [[ "$NEW_HASH" != "$OLD_HASH" ]] || [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "$NEW_HASH" > .upstream_hash
             echo "update=true" >> $GITHUB_OUTPUT
             echo "hash=$NEW_HASH" >> $GITHUB_OUTPUT
           else
-            echo "No update needed."
+            echo "update=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Build & Package
+      - name: Update Version
+        if: steps.check.outputs.update == 'true'
+        run: |
+          sed -i 's/\r$//' src/module.prop
+          
+          TODAY=$(date +%Y%m%d)
+          OLD_CODE=$(awk -F= '/^versionCode/ {print $2}' src/module.prop | tr -cd '0-9')
+          if [ -z "$OLD_CODE" ]; then OLD_CODE=0; fi
+          NEW_CODE=$((OLD_CODE + 1))
+          
+          sed -i "s/^version=.*/version=$TODAY/" src/module.prop
+          sed -i "s/^versionCode=.*/versionCode=$NEW_CODE/" src/module.prop
+          
+          echo "TAG=${TODAY}_v${NEW_CODE}" >> $GITHUB_ENV
+
+      - name: Build
         if: steps.check.outputs.update == 'true'
         run: |
           bash build.sh
-          
-          if [ ! -s "output/checksums.txt" ]; then
-            echo "Error: Build failed or checksums.txt is empty."
-            exit 1
-          fi
+          if [ ! -s "output/checksums.txt" ]; then exit 1; fi
 
-      - name: Bump Version & Commit
+      - name: Commit and Push
         if: steps.check.outputs.update == 'true'
         run: |
           git config --global user.name "GitHub Action"
           git config --global user.email "action@github.com"
-
-          TODAY=$(date +%Y%m%d)
           
-          if [ ! -f version.json ]; then echo '{"versionCode": 0, "version": ""}' > version.json; fi
-          
-          jq --arg v "$TODAY" '.versionCode += 1 | .version = $v' version.json > v.tmp && mv v.tmp version.json
-          CODE=$(jq -r .versionCode version.json)
-
-          sed -i "s/^version=.*/version=$TODAY/" src/module.prop || true
-          sed -i "s/^versionCode=.*/versionCode=$CODE/" src/module.prop || true
-
-          # 提交代码 (仅提交变更文件)
-          git add version.json src/module.prop
-          git commit -m "Auto update to $TODAY (Code: $CODE)"
+          git add .upstream_hash src/module.prop
+          git commit -m "Auto update to ${{ env.TAG }}"
           git push
-
-          echo "TAG=$TODAY" >> $GITHUB_ENV
-          echo "CODE=$CODE" >> $GITHUB_ENV
-
+          
           echo "CHECKSUMS<<EOF" >> $GITHUB_ENV
           cat output/checksums.txt >> $GITHUB_ENV
           echo "EOF" >> $GITHUB_ENV
 
-      - name: Create Release
+      - name: Release
         if: steps.check.outputs.update == 'true'
         uses: softprops/action-gh-release@v1
         with:
@@ -81,14 +76,12 @@ jobs:
             output/*.zip
             output/checksums.txt
           body: |
-            ## 🔔 Upstream Rule Updated
+            ## Upstream Rule Updated
             
-            - **Version:** ${{ env.TAG }} (Code: ${{ env.CODE }})
-            - **Time:** $(date "+%Y-%m-%d %H:%M:%S")
+            - **Version:** ${{ env.TAG }}
             - **Rule Hash:** `${{ steps.check.outputs.hash }}`
             
-            ### Checksums (SHA256)
+            ### Checksums
             ```text
             ${{ env.CHECKSUMS }}
             ```
-            <!-- rule_hash: ${{ steps.check.outputs.hash }} -->
