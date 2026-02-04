@@ -15,73 +15,75 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+    - uses: actions/checkout@v4
 
-      - name: Check Update
-        id: check
-        run: |
-          NEW_HASH=$(curl -sfL "$UPSTREAM_URL" | sha256sum | awk '{print $1}')
-          if [ -f .upstream_hash ]; then OLD_HASH=$(cat .upstream_hash); else OLD_HASH=""; fi
+    - name: Check Update  
+      id: check  
+      run: |  
+        NEW_HASH=$(curl -sfL "$UPSTREAM_URL" | sha256sum | awk '{print $1}')  
+        if [ -f .upstream_hash ]; then OLD_HASH=$(cat .upstream_hash); else OLD_HASH=""; fi  
           
-          if [[ "$NEW_HASH" != "$OLD_HASH" ]] || [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            echo "$NEW_HASH" > .upstream_hash
-            echo "update=true" >> $GITHUB_OUTPUT
-            echo "hash=$NEW_HASH" >> $GITHUB_OUTPUT
-          else
-            echo "update=false" >> $GITHUB_OUTPUT
-          fi
+        if [[ "$NEW_HASH" != "$OLD_HASH" ]] || [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then  
+          echo "$NEW_HASH" > .upstream_hash  
+          echo "update=true" >> $GITHUB_OUTPUT  
+          echo "hash=$NEW_HASH" >> $GITHUB_OUTPUT  
+        else  
+          echo "update=false" >> $GITHUB_OUTPUT  
+        fi  
 
-      - name: Update Version
-        if: steps.check.outputs.update == 'true'
-        run: |
-          sed -i 's/\r$//' src/module.prop
+    - name: Update Version  
+      if: steps.check.outputs.update == 'true'  
+      run: |  
+        sed -i 's/\r$//' src/module.prop  
           
-          TODAY=$(date +%Y%m%d)
-          OLD_CODE=$(awk -F= '/^versionCode/ {print $2}' src/module.prop | tr -cd '0-9')
-          if [ -z "$OLD_CODE" ]; then OLD_CODE=0; fi
-          NEW_CODE=$((OLD_CODE + 1))
+        TODAY=$(date +%Y%m%d)  
+        OLD_CODE=$(awk -F= '/^versionCode/ {print $2}' src/module.prop | tr -cd '0-9')  
+        if [ -z "$OLD_CODE" ]; then OLD_CODE=0; fi  
+        NEW_CODE=$((OLD_CODE + 1))  
           
-          sed -i "s/^version=.*/version=$TODAY/" src/module.prop
-          sed -i "s/^versionCode=.*/versionCode=$NEW_CODE/" src/module.prop
+        sed -i "s/^version=.*/version=$TODAY/" src/module.prop  
+        sed -i "s/^versionCode=.*/versionCode=$NEW_CODE/" src/module.prop  
+        
+        jq --arg ver "$TODAY" --arg code "$NEW_CODE" '.version = $ver | .versionCode = ($code | tonumber)' version.json > tmp.json && mv tmp.json version.json
           
-          echo "TAG=${TODAY}_v${NEW_CODE}" >> $GITHUB_ENV
+        echo "TAG=${TODAY}_v${NEW_CODE}" >> $GITHUB_ENV  
 
-      - name: Build
-        if: steps.check.outputs.update == 'true'
-        run: |
-          bash build.sh
-          if [ ! -s "output/checksums.txt" ]; then exit 1; fi
+    - name: Build  
+      if: steps.check.outputs.update == 'true'  
+      run: |  
+        bash build.sh  
+        if [ ! -s "output/checksums.txt" ]; then exit 1; fi  
 
-      - name: Commit and Push
-        if: steps.check.outputs.update == 'true'
-        run: |
-          git config --global user.name "GitHub Action"
-          git config --global user.email "action@github.com"
+    - name: Commit and Push  
+      if: steps.check.outputs.update == 'true'  
+      run: |  
+        git config --global user.name "GitHub Action"  
+        git config --global user.email "action@github.com"  
           
-          git add .upstream_hash src/module.prop
-          git commit -m "Auto update to ${{ env.TAG }}"
-          git push
+        git add .upstream_hash src/module.prop version.json
+        git commit -m "Auto update to ${{ env.TAG }}"  
+        git push  
           
-          echo "CHECKSUMS<<EOF" >> $GITHUB_ENV
-          cat output/checksums.txt >> $GITHUB_ENV
-          echo "EOF" >> $GITHUB_ENV
+        echo "CHECKSUMS<<EOF" >> $GITHUB_ENV  
+        cat output/checksums.txt >> $GITHUB_ENV  
+        echo "EOF" >> $GITHUB_ENV  
 
-      - name: Release
-        if: steps.check.outputs.update == 'true'
-        uses: softprops/action-gh-release@v1
-        with:
-          tag_name: ${{ env.TAG }}
-          name: AdGuardHome Update ${{ env.TAG }}
-          files: |
-            output/*.zip
-            output/checksums.txt
-          body: |
-            ## Upstream Rule Updated
+    - name: Release  
+      if: steps.check.outputs.update == 'true'  
+      uses: softprops/action-gh-release@v1  
+      with:  
+        tag_name: ${{ env.TAG }}  
+        name: AdGuardHome Update ${{ env.TAG }}  
+        files: |  
+          output/*.zip  
+          output/checksums.txt  
+        body: |  
+          ## Upstream Rule Updated  
             
-            - **Version:** ${{ env.TAG }}
-            - **Rule Hash:** `${{ steps.check.outputs.hash }}`
+          - **Version:** ${{ env.TAG }}  
+          - **Rule Hash:** `${{ steps.check.outputs.hash }}`  
             
-            ### Checksums
-            ```text
-            ${{ env.CHECKSUMS }}
-            ```
+          ### Checksums  
+          ```text  
+          ${{ env.CHECKSUMS }}  
+          ```
