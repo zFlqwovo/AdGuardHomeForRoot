@@ -37,6 +37,43 @@
           <p>This WebUI requires KernelSU or APatch module manager. Please open this page from the module manager app.</p>
         </div>
 
+        <!-- Statistics -->
+        <div class="card card-stats">
+          <div class="card-title">
+            <svg class="card-title-icon" viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/></svg>
+            Query Log Statistics
+            <button class="btn-help" onclick="toggleStatsHelp()">?</button>
+          </div>
+          <!-- Stats Data View -->
+          <div class="stats-grid" id="statsDataView">
+            <div class="stat-item">
+              <div class="stat-value" id="statQueries">-</div>
+              <div class="stat-label">DNS查询</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-value" id="statBlocked">-</div>
+              <div class="stat-label">规则拦截</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-value" id="statTime">-</div>
+              <div class="stat-label">处理耗时</div>
+            </div>
+          </div>
+          <!-- Credential Input View (hidden by default) -->
+          <div class="stats-auth-form" id="statsAuthView" style="display:none;">
+            <div class="stats-auth-hint">认证失败，请输入 AdGuardHome Web UI 账号密码</div>
+            <div class="input-group">
+              <label class="input-label">Username</label>
+              <input type="text" class="input-field" id="authUser" placeholder="root" value="root">
+            </div>
+            <div class="input-group">
+              <label class="input-label">Password</label>
+              <input type="password" class="input-field" id="authPassword" placeholder="root" value="root">
+            </div>
+            <button class="btn btn-primary btn-full" onclick="submitCredentials()" style="margin-top:8px;">确认</button>
+          </div>
+        </div>
+
         <!-- Open Web Panel -->
         <div class="card card-action">
           <button class="btn btn-link btn-full" onclick="openAdGuardHome()">
@@ -68,7 +105,7 @@
       <div class="container">
         <!-- Settings Header -->
         <div class="settings-header">
-          <div class="card-title"><span class="icon">⚙️</span> Settings</div>
+          <div class="card-title">Settings</div>
         </div>
 
         <!-- Settings Content -->
@@ -121,7 +158,7 @@
 
           <div class="setting-group" style="margin-bottom:0;">
             <button class="btn btn-primary btn-full" id="btnSaveSettings" onclick="saveSettings()" disabled>
-              💾 Save Settings
+              Save Settings
             </button>
           </div>
         </div>
@@ -140,6 +177,27 @@
       <svg class="tab-icon" viewBox="0 0 24 24"><path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.74,8.87 C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.8,11.69,4.8,12s0.02,0.64,0.07,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54 c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.44-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96 c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z"/></svg>
       <span class="tab-label">Settings</span>
     </div>
+  </div>
+</div>
+
+<!-- Stats Help Modal -->
+<div class="help-modal-overlay" id="statsHelpOverlay" onclick="closeStatsHelp()">
+  <div class="help-modal" onclick="event.stopPropagation()">
+    <div class="help-modal-title">指标说明</div>
+    <div class="help-modal-item">
+      <strong>DNS查询</strong>
+      <p>AdGuard Home 核心处理的 DNS 查询总数。</p>
+    </div>
+    <div class="help-modal-item">
+      <strong>规则拦截</strong>
+      <p>被过滤规则拦截的 DNS 请求数量。</p>
+    </div>
+    <div class="help-modal-item">
+      <strong>处理耗时</strong>
+      <p>处理每个 DNS 请求的平均耗时（秒）。</p>
+    </div>
+    <div class="help-modal-note">数据通过 AdGuard Home OpenAPI 实时获取，统计周期由核心配置决定。</div>
+    <button class="btn btn-secondary btn-full" onclick="closeStatsHelp()" style="margin-top:12px;">关闭</button>
   </div>
 </div>
 

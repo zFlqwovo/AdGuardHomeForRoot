@@ -69,11 +69,24 @@ function showLoading(show) {
   document.getElementById('loadingOverlay').style.display = show ? 'flex' : 'none';
 }
 
+// ==================== Paths ====================
+var AGH_DIR = '/data/adb/agh';
+var CONF_FILE = AGH_DIR + '/settings.conf';
+var PID_FILE = AGH_DIR + '/bin/agh.pid';
+var LOG_FILE = AGH_DIR + '/history.log';
+var SCRIPT_DIR = AGH_DIR + '/scripts';
+var BIN_DIR = AGH_DIR + '/bin';
+var MODULE_PROP = '/data/adb/modules/AdGuardHome/module.prop';
+
 // ==================== State ====================
 var currentSettings = {};
 var settingsChanged = false;
 var isRunning = false;
-var webPort = '3000'; // stored internally for openAdGuardHome()
+var webPort = '3000';
+var webUser = 'root';
+var webPassword = 'root';
+var statsFailCount = 0;
+var statsAuthVisible = false;
 
 // ==================== Tab / Page Switching ====================
 var currentPage = 0;
@@ -95,6 +108,12 @@ function switchTab(index) {
     } else {
       tabs[i].classList.remove('active');
     }
+  }
+
+  // Always show floating tab when switching pages
+  var floatingTab = document.getElementById('floatingTab');
+  if (floatingTab) {
+    floatingTab.classList.remove('tab-hidden');
   }
 }
 
@@ -191,7 +210,7 @@ function checkStatus() {
   var running = false;
   var pid = '-';
 
-  var pidResult = ModuleAPI.exec('cat /data/adb/agh/bin/agh.pid 2>/dev/null');
+  var pidResult = ModuleAPI.exec('cat ' + PID_FILE + ' 2>/dev/null');
   pid = pidResult.stdout.trim();
 
   if (pid && /^\d+$/.test(pid)) {
@@ -212,18 +231,17 @@ function checkStatus() {
 }
 
 // ==================== Load Settings ====================
+function getConf(key) {
+  var r = ModuleAPI.exec('grep "^' + key + '=" ' + CONF_FILE + ' 2>/dev/null | cut -d= -f2');
+  return (r.stdout || '').replace(/\r/g, '').trim();
+}
+
+function getConfQuoted(key) {
+  return getConf(key).replace(/^"|"$/g, '');
+}
+
 function loadSettings() {
   var settings = {};
-
-  function getConf(key) {
-    var r = ModuleAPI.exec('grep "^' + key + '=" /data/adb/agh/settings.conf 2>/dev/null | cut -d= -f2');
-    return (r.stdout || '').replace(/\r/g, '').trim();
-  }
-  function getConfQuoted(key) {
-    var val = getConf(key);
-    return val.replace(/^"|"$/g, '');
-  }
-
   settings.enable_iptables = getConf('enable_iptables');
   settings.block_ipv6_dns = getConf('block_ipv6_dns');
   settings.redir_port = getConf('redir_port') || '5591';
@@ -267,13 +285,13 @@ function saveSettings() {
   var ignoreSrc = document.getElementById('setIgnoreSrc').value || '';
 
   var cmd =
-    "sed -i 's#^enable_iptables=.*#enable_iptables=" + enableIptables + "#' /data/adb/agh/settings.conf" +
-    " && sed -i 's#^block_ipv6_dns=.*#block_ipv6_dns=" + blockIpv6 + "#' /data/adb/agh/settings.conf" +
-    " && sed -i 's#^redir_port=.*#redir_port=" + redirPort + "#' /data/adb/agh/settings.conf" +
-    " && sed -i 's#^adg_user=.*#adg_user=" + adgUser + "#' /data/adb/agh/settings.conf" +
-    " && sed -i 's#^adg_group=.*#adg_group=" + adgGroup + "#' /data/adb/agh/settings.conf" +
-    " && sed -i 's#^ignore_dest_list=.*#ignore_dest_list=\"" + ignoreDest + "\"#' /data/adb/agh/settings.conf" +
-    " && sed -i 's#^ignore_src_list=.*#ignore_src_list=\"" + ignoreSrc + "\"#' /data/adb/agh/settings.conf";
+    "sed -i 's#^enable_iptables=.*#enable_iptables=" + enableIptables + "#' " + CONF_FILE +
+    " && sed -i 's#^block_ipv6_dns=.*#block_ipv6_dns=" + blockIpv6 + "#' " + CONF_FILE +
+    " && sed -i 's#^redir_port=.*#redir_port=" + redirPort + "#' " + CONF_FILE +
+    " && sed -i 's#^adg_user=.*#adg_user=" + adgUser + "#' " + CONF_FILE +
+    " && sed -i 's#^adg_group=.*#adg_group=" + adgGroup + "#' " + CONF_FILE +
+    " && sed -i 's#^ignore_dest_list=.*#ignore_dest_list=\"" + ignoreDest + "\"#' " + CONF_FILE +
+    " && sed -i 's#^ignore_src_list=.*#ignore_src_list=\"" + ignoreSrc + "\"#' " + CONF_FILE;
 
   var result = ModuleAPI.exec(cmd);
 
@@ -291,7 +309,7 @@ function saveSettings() {
 // ==================== Log Viewer ====================
 function loadLog() {
   if (!ModuleAPI.isAvailable()) return;
-  var result = ModuleAPI.exec("awk '{a[NR]=$0}END{for(i=(NR>5?NR-4:1);i<=NR;i++)printf \"%s::NL::\",a[i]}' /data/adb/agh/history.log 2>/dev/null");
+  var result = ModuleAPI.exec("awk '{a[NR]=$0}END{for(i=(NR>5?NR-4:1);i<=NR;i++)printf \"%s::NL::\",a[i]}' " + LOG_FILE + " 2>/dev/null");
   var logViewer = document.getElementById('logViewer');
   if (logViewer) {
     var raw = (result.stdout || '').trim();
@@ -302,6 +320,95 @@ function loadLog() {
   }
 }
 
+// ==================== Stats Help Modal ====================
+function toggleStatsHelp() {
+  var overlay = document.getElementById('statsHelpOverlay');
+  if (overlay) {
+    overlay.classList.add('visible');
+  }
+}
+
+function closeStatsHelp() {
+  var overlay = document.getElementById('statsHelpOverlay');
+  if (overlay) {
+    overlay.classList.remove('visible');
+  }
+}
+
+// ==================== Stats View Switching ====================
+function showStatsDataView() {
+  statsAuthVisible = false;
+  var dataView = document.getElementById('statsDataView');
+  var authView = document.getElementById('statsAuthView');
+  if (dataView) dataView.style.display = '';
+  if (authView) authView.style.display = 'none';
+}
+
+function showStatsAuthView() {
+  statsAuthVisible = true;
+  var dataView = document.getElementById('statsDataView');
+  var authView = document.getElementById('statsAuthView');
+  if (dataView) dataView.style.display = 'none';
+  if (authView) authView.style.display = '';
+}
+
+function submitCredentials() {
+  var userEl = document.getElementById('authUser');
+  var passEl = document.getElementById('authPassword');
+  if (userEl) webUser = userEl.value || 'root';
+  if (passEl) webPassword = passEl.value || 'root';
+  statsFailCount = 0;
+  showStatsDataView();
+  loadStats();
+}
+
+// ==================== Query Log Statistics ====================
+function loadStats() {
+  if (!ModuleAPI.isAvailable()) return;
+  if (!isRunning) return;
+  if (webPort === '-') return;
+  if (statsAuthVisible) return;
+
+  var url = 'http://127.0.0.1:' + webPort + '/control/stats';
+  var auth = webUser + ':' + webPassword;
+  var cmd = 'wget -qO- --user=' + webUser + ' --password=' + webPassword + ' ' + url + ' 2>/dev/null || curl -s -u ' + auth + ' ' + url + ' 2>/dev/null';
+
+  var result = ModuleAPI.exec(cmd);
+  var raw = (result.stdout || '').trim();
+
+  var queriesEl = document.getElementById('statQueries');
+  var blockedEl = document.getElementById('statBlocked');
+  var timeEl = document.getElementById('statTime');
+
+  if (!raw || raw.charAt(0) !== '{') {
+    statsFailCount++;
+    if (queriesEl) queriesEl.textContent = '-';
+    if (blockedEl) blockedEl.textContent = '-';
+    if (timeEl) timeEl.textContent = '-';
+    if (statsFailCount >= 2) {
+      showStatsAuthView();
+    }
+    return;
+  }
+
+  try {
+    var stats = JSON.parse(raw);
+
+    if (queriesEl) queriesEl.textContent = (typeof stats.num_dns_queries === 'number') ? stats.num_dns_queries : '-';
+    if (blockedEl) blockedEl.textContent = (typeof stats.num_blocked_filtering === 'number') ? stats.num_blocked_filtering : '-';
+    if (timeEl) timeEl.textContent = (typeof stats.avg_processing_time === 'number') ? stats.avg_processing_time.toFixed(2) + 's' : '-';
+    statsFailCount = 0;
+  } catch (e) {
+    statsFailCount++;
+    if (queriesEl) queriesEl.textContent = '-';
+    if (blockedEl) blockedEl.textContent = '-';
+    if (timeEl) timeEl.textContent = '-';
+    if (statsFailCount >= 2) {
+      showStatsAuthView();
+    }
+  }
+}
+
 // ==================== Control ====================
 function controlAdGuard(action) {
   showLoading(true);
@@ -309,13 +416,13 @@ function controlAdGuard(action) {
   var cmd;
   switch (action) {
     case 'start':
-      cmd = '/data/adb/agh/scripts/tool.sh start';
+      cmd = SCRIPT_DIR + '/tool.sh start';
       break;
     case 'stop':
-      cmd = '/data/adb/agh/scripts/tool.sh stop';
+      cmd = SCRIPT_DIR + '/tool.sh stop';
       break;
     case 'restart':
-      cmd = '/data/adb/agh/scripts/tool.sh stop; sleep 1; /data/adb/agh/scripts/tool.sh start';
+      cmd = SCRIPT_DIR + '/tool.sh stop; sleep 1; ' + SCRIPT_DIR + '/tool.sh start';
       break;
     default:
       showLoading(false);
@@ -347,14 +454,14 @@ function openAdGuardHome() {
 // ==================== Debug Info ====================
 function collectDebugInfo() {
   showLoading(true);
-  ModuleAPI.exec('/data/adb/agh/scripts/debug.sh 2>/dev/null');
-  showToast('Debug info collected to /data/adb/agh/debug.log', 'success');
+  ModuleAPI.exec(SCRIPT_DIR + '/debug.sh 2>/dev/null');
+  showToast('Debug info collected to ' + AGH_DIR + '/debug.log', 'success');
   showLoading(false);
 }
 
 // ==================== Load Web Port ====================
 function loadWebPort() {
-  var result = ModuleAPI.exec("grep 'address:' /data/adb/agh/bin/AdGuardHome.yaml 2>/dev/null | head -1");
+  var result = ModuleAPI.exec("grep 'address:' " + BIN_DIR + "/AdGuardHome.yaml 2>/dev/null | head -1");
   var line = result.stdout.trim();
   var match = line.match(/address:\s*\S+:(\d+)/);
   if (match && match[1]) {
@@ -366,10 +473,32 @@ function loadWebPort() {
 
 // ==================== Load Version ====================
 function loadVersion() {
-  var result = ModuleAPI.exec('grep "^version=" /data/adb/modules/AdGuardHome/module.prop 2>/dev/null | cut -d= -f2');
+  var result = ModuleAPI.exec('grep "^version=" ' + MODULE_PROP + ' 2>/dev/null | cut -d= -f2');
   var version = result.stdout.trim();
   if (version) {
     document.getElementById('versionText').textContent = 'v' + version;
+  }
+}
+
+// ==================== Scroll Hide Floating Tab ====================
+function setupScrollHideTab() {
+  var pages = document.querySelectorAll('.page');
+  var floatingTab = document.getElementById('floatingTab');
+  if (!floatingTab) return;
+
+  for (var i = 0; i < pages.length; i++) {
+    (function(page) {
+      page.addEventListener('scroll', function() {
+        var atTop = page.scrollTop <= 2;
+        var atBottom = page.scrollTop + page.clientHeight >= page.scrollHeight - 2;
+
+        if (atTop || atBottom) {
+          floatingTab.classList.remove('tab-hidden');
+        } else {
+          floatingTab.classList.add('tab-hidden');
+        }
+      });
+    })(pages[i]);
   }
 }
 
@@ -387,17 +516,20 @@ function init() {
   loadWebPort();
   loadVersion();
   loadLog();
+  loadStats();
+  setupScrollHideTab();
 
   switchTab(0);
 }
 
-// Auto-refresh status and log every 15 seconds
+// Auto-refresh every 5 seconds
 setInterval(function() {
   if (ModuleAPI.isAvailable()) {
     checkStatus();
     loadLog();
+    loadStats();
   }
-}, 15000);
+}, 5000);
 
 // Start
 document.addEventListener('DOMContentLoaded', init);
