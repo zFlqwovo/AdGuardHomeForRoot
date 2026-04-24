@@ -64,6 +64,12 @@ extract_all() {
 if [ -d "$AGH_DIR" ]; then
   info "- ⏹️ Found old version, stopping all AdGuardHome processes..." "- ⏹️ 发现旧版模块，正在停止所有 AdGuardHome 进程..."
   pkill -f "AdGuardHome" || pkill -9 -f "AdGuardHome" 
+
+  for i in 1 2 3 4 5; do
+  pgrep -f "AdGuardHome" >/dev/null 2>&1 || break
+  sleep 1
+  done
+  
   info "- 🔄 Defaulting to keep old configuration." "- 🔄 默认保留原配置。"
   extract_keep_config
 else
