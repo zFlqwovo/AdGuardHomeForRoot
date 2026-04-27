@@ -6,7 +6,7 @@ ip6tables_w="ip6tables -w 64"
 
 check_ipv6_nat_support() {
   if ! $ip6tables_w -t nat -L >/dev/null 2>&1; then
-    log "IPv6 NAT: nat表不存在，不支持" "IPv6 NAT: nat table not found, not supported"
+    log "IPv6 NAT: 不支持" "IPv6 NAT: not supported"
     return 1
   fi
 
@@ -16,24 +16,11 @@ check_ipv6_nat_support() {
     $ip6tables_w -t nat -D PREROUTING -p tcp --dport 65534 -j REDIRECT --to-port 65534 >/dev/null 2>&1
   fi
 
-  local masked=false
-  if [ -f /proc/config.gz ]; then
-    local cfg_val
-    cfg_val="$(zcat /proc/config.gz 2>/dev/null | grep -E '^CONFIG_IP6_NF_NAT=' | tail -1 | cut -d= -f2-)"
-    if [ -n "$cfg_val" ] && [ "$cfg_val" != "y" ] && [ "$cfg_val" != "m" ]; then
-      masked=true
-    fi
-  fi
-
   if $redirect_ok; then
-    if $masked; then
-      log "IPv6 NAT: 支持（REDIRECT实测通过，config已伪装）" "IPv6 NAT: supported (REDIRECT test passed, config masked)"
-    else
-      log "IPv6 NAT: 支持（REDIRECT实测通过）" "IPv6 NAT: supported (REDIRECT test passed)"
-    fi
+    log "IPv6 NAT: 支持（REDIRECT）" "IPv6 NAT: supported (REDIRECT)"
     return 0
   else
-    log "IPv6 NAT: nat表存在但REDIRECT不可用" "IPv6 NAT: nat table exists but REDIRECT unavailable"
+    log "IPv6 NAT: 不支持" "IPv6 NAT: not supported"
     return 1
   fi
 }
