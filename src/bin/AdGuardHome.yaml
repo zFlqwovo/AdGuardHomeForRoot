@@ -10,7 +10,7 @@ http:
       - POST /dns-query/{ClientID}
     insecure_enabled: false
   address: 127.0.0.1:3000
-  session_ttl: 720h
+  session_ttl: 30d
 users:
   - name: root
     password: $2b$12$D3zeMIBFfzcQTqGqB.k7GOkMvqx1jgsrdiRCn2kwOHl.kNmmPfMom

@@ -12,33 +12,50 @@
 
 ## 配置 (Configuration)
 
-模块默认的 AdGuardHome 后台地址为 `http://127.0.0.1:3000`，可以通过浏览器直接访问，默认账号和密码均为 `root`。
+### 1. AdGuardHome 核心后台
+模块默认的 AdGuardHome 后台地址为 `http://127.0.0.1:3000`（具体取决于 `AdGuardHome.yaml` 中的 `address` 配置），可以通过浏览器直接访问，默认账号和密码均为 `root`。
 
-在 AdGuardHome 后台，你可以执行以下操作：
+在核心后台，你可以执行以下操作：
+- 查看详细的 DNS 查询统计与过滤图表
+- 修改 DNS 上游、黑名单、DNSSEC 等高级配置
+- 管理客户端接入与规则订阅读取
 
-- 查看 DNS 查询统计信息
-- 修改各种 DNS 配置
-- 查看日志
-- 添加自定义规则
+### 2. 模块管理页面 (Web UI)
+如果你使用的是 **KernelSU**、**APatch** 或支持 WebUI 的 **Magisk** 版本，可以通过点击模块列表中的“管理”按钮进入图形化配置界面。
 
-如果你更倾向于使用app管理AdGuardHome，可以尝试使用 [AdGuard Home Manager](https://github.com/JGeek00/adguard-home-manager) 应用。
+在管理页面中，你可以：
+- **图形化修改配置**：直接调整 `settings.conf` 中的参数（如 iptables 开关、IPv6 拦截、运行用户组等），无需手动编辑文件。
+- **状态快览**：实时查看核心运行状态、PID 以及版本号，并可一键进入核心后台。
+- **服务控制**：支持一键“启动”、“停止”、“重启”核心服务。
+- **日志查看**：内置实时高亮的“核心日志”与“模块运行历史”查看器。
+- **维护工具**：支持一键导出调试日志，并可直接调用系统文件查看器打开生成的 `debug.log`。
+
+如果你更倾向于使用独立 App 管理 AdGuardHome 核心，可以尝试使用 [AdGuard Home Manager](https://github.com/JGeek00/adguard-home-manager) 应用。
 
 ---
 
 ## 模块控制 (Module Control)
 
-模块的状态会实时显示在`module.prop`文件中，在root管理器中可以看到模块的状态信息（如果没刷新请手动刷新）
+### 方法一：通过模块管理页面 (推荐)
+进入模块 Web UI 界面，点击顶部的“启动核心”或“停止核心”按钮即可完成控制。
 
-模块实时监测`/data/adb/modules/AdGuardHome`目录下的`disable`文件，如果存在则禁用模块，不存在则启用模块
+### 方法二：通过配置文件标识 (Shell/文件管理器)
+模块实时监测`/data/adb/modules/AdGuardHome`目录下的`disable`文件：
+- 存在该文件则禁用模块
+- 不存在该文件则启用模块
 
-如果你想用其他方法来启停，你可以在文件管理器中手动创建和删除文件，也可以使用shell命令
-
+你可以使用以下命令进行灵活切换：
 ```shell
+# 停用
 touch /data/adb/modules/AdGuardHome/disable
+# 启用
+rm /data/adb/modules/AdGuardHome/disable
 ```
 
+此外，你也可以在 Shell 中直接调用工具脚本：
 ```shell
-rm /data/adb/modules/AdGuardHome/disable
+/data/adb/agh/scripts/tool.sh start    # 启动
+/data/adb/agh/scripts/tool.sh stop     # 停止
 ```
 
 本模块可以分为两部分，一部分是 AdGuardHome 本身，它在本地搭建了一个可自定义拦截功能的 DNS 服务器，另一部分是 iptables 转发规则，它负责将本机所有53端口出口流量重定向到 AdGuardHome
@@ -51,34 +68,28 @@ rm /data/adb/modules/AdGuardHome/disable
 
 ### 日志文件说明
 
+你可以直接在**模块管理页面 (Web UI)** 的“查看日志”分页中实时查看，也可以手动打开物理文件：
+
 1. **`/data/adb/agh/history.log` (模块运行日志)**
-   - **内容**：记录了模块的启动、停止、iptables 规则应用等操作的结果。
    - **用途**：排查“为什么模块显示已启动但没效果”或“为什么模块启动失败”。
+   - **Web UI**：对应“运行历史”选项卡。
 
 2. **`/data/adb/agh/bin.log` (核心服务日志)**
-   - **内容**：AdGuardHome 二进制程序本身的输出，包括 Web 界面启动信息、DNS 引擎运行状态、证书加载错误等。
    - **用途**：排查“Web 界面打不开”、“DNS 解析报错”等程序本身的问题。
+   - **Web UI**：对应“核心日志”选项卡。
 
-3. **`/data/adb/agh/bin.log.bak`**
-   - **内容**：上一次运行时的核心服务日志备份。
+### 导出与查看调试信息
 
-### 使用 debug.sh 收集信息
+如果遇到疑难问题，建议使用维护工具：
 
-如果你遇到了难以解决的问题，可以运行模块自带的调试脚本：
-
-```shell
-sh /data/adb/agh/scripts/debug.sh
-```
-
-- 该脚本会自动收集系统版本、架构、进程状态、防火墙规则 (iptables)、网络接口信息以及上述日志的摘要。
-- 所有信息将汇总输出到 **`/data/adb/agh/debug.log`**。
-- 在反馈 Issue 时，提供此文件的内容能极大地帮助开发者定位问题。
+- **Web UI 操作**：在“维护中心”点击“生成调试日志”，完成后点击“本地打开日志”即可直接查看。
+- **Shell 操作**：执行 `sh /data/adb/agh/scripts/debug.sh`，信息将汇总至 `/data/adb/agh/debug.log`。
 
 ### 常见状态标识 (显示在 Magisk/KSU 描述中)
 
-- `🥰 Started...`: 模块及防火墙规则均已成功运行。
-- `❌ Stopped`: 模块已正常停止。
-- `😭 Error occurred...`: 启动过程中出现问题（如 AdGuardHome 闪退或防火墙应用失败），此时请检查 `history.log` 和 `bin.log`。
+- `🟢 [PID: xxx] 运行中...`: 核心及防火墙规则均已成功运行。
+- `🔴 已停止`: 模块处于停止状态。
+- `🔴 Error occurred / 应用 iptables 出错`: 启动过程中出现关键性错误，请通过 Web UI 或查看 `history.log` 排查。
 
 ---
 
@@ -88,62 +99,11 @@ sh /data/adb/agh/scripts/debug.sh
 
 **代理应用**：如 [NekoBox](https://github.com/MatsuriDayo/NekoBoxForAndroid)、[FlClash](https://github.com/chen08209/FlClash) 等。这些应用通常具有图形化界面，便于用户配置和管理代理规则。
 
-以下是我自用的 FlClash 配置文件示例：
-
-```yaml
-proxy-providers:
-  provider1:
-    type: http
-    url: ""
-    interval: 86400
-
-  provider2:
-    type: http
-    url: ""
-    interval: 86400
-
-proxy-groups:
-  - name: PROXY
-    type: select
-    include-all: true
-
-rules:
-proxy-groups:
-  - name: PROXY
-    type: select
-    include-all: true
-
-rules:
-  - GEOSITE,private,DIRECT
-  - GEOSITE,googlefcm,DIRECT
-  - GEOSITE,bilibili,DIRECT
-  - GEOSITE,onedrive,PROXY
-  - GEOSITE,twitter,PROXY
-  - GEOSITE,youtube,PROXY
-  - GEOSITE,telegram,PROXY
-  - GEOSITE,google,PROXY
-  
-  - GEOSITE,microsoft@cn,DIRECT
-  - GEOSITE,category-scholar-!cn,PROXY
-  - GEOSITE,steam@cn,DIRECT
-  - GEOSITE,category-games@cn,DIRECT
-  - GEOSITE,geolocation-!cn,PROXY
-  - GEOSITE,cn,DIRECT
-
-  - GEOIP,private,DIRECT,no-resolve
-  - GEOIP,google,DIRECT
-  - GEOIP,telegram,PROXY
-  - GEOIP,cn,DIRECT
-
-  - MATCH,DIRECT
-
-```
-
-没有写 DNS 部分是因为 FlClash 支持 DNS 覆写，在软件内就可配置 DNS 部分，将域名解析服务器改为 127.0.0.1:5591 即可使用本地的 adgh 作为DNS服务器
-
-**代理模块**：如 [box_for_magisk](https://github.com/taamarin/box_for_magisk)、[akashaProxy](https://github.com/akashaProxy/akashaProxy) 等。这些模块通常运行在系统层级，适合需要更高权限或更深度集成的场景。
+这类软件可手动配置 DNS 部分，将域名解析服务器改为 127.0.0.1:5591 即可使用本地的 adgh 作为DNS服务器
 
 代理应用的 `分应用代理/访问控制` 功能非常实用。通过将国内应用设置为绕过模式，可以减少不必要的流量经过代理，同时这些绕过的应用仍然能够正常屏蔽广告。
+
+**代理模块**：如 [box_for_magisk](https://github.com/taamarin/box_for_magisk)、[akashaProxy](https://github.com/akashaProxy/akashaProxy) 等。这些模块通常运行在系统层级，适合需要更高权限或更深度集成的场景。
 
 如果使用代理模块，强烈建议禁用模块的 iptables 转发规则。禁用后，模块仅运行 AdGuardHome 本身。随后，将代理模块的上游 DNS 服务器配置为 `127.0.0.1:5591`，即可确保代理软件的所有 DNS 查询通过 AdGuardHome 进行广告屏蔽。
 
