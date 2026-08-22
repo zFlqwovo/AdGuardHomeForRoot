@@ -1,0 +1,116 @@
+name: Pack AdGuardHomeForRoot
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "[0-9]*"
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    name: Build ${{ matrix.arch }} package
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [arm64, armv7]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Resolve archive URL
+        id: vars
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "${{ matrix.arch }}" in
+            arm64)
+              echo "archive_url=https://github.com/AdguardTeam/AdGuardHome/releases/latest/download/AdGuardHome_linux_arm64.tar.gz" >> "$GITHUB_OUTPUT"
+              ;;
+            armv7)
+              echo "archive_url=https://github.com/AdguardTeam/AdGuardHome/releases/latest/download/AdGuardHome_linux_armv7.tar.gz" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "Unsupported arch: ${{ matrix.arch }}" >&2
+              exit 1
+              ;;
+          esac
+
+      - name: Download release archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p cache
+          curl -fL "${{ steps.vars.outputs.archive_url }}" -o "cache/AdGuardHome_linux_${{ matrix.arch }}.tar.gz"
+
+      - name: Extract archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "cache/${{ matrix.arch }}"
+          tar -xzf "cache/AdGuardHome_linux_${{ matrix.arch }}.tar.gz" -C "cache/${{ matrix.arch }}"
+
+      - name: Stage package files
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf staging
+          mkdir -p staging
+          cp -a src/. staging/
+          cp "cache/${{ matrix.arch }}/AdGuardHome/AdGuardHome" "staging/bin/AdGuardHome"
+
+      - name: Create zip package
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f "AdGuardHomeForRoot_${{ matrix.arch }}.zip"
+          (
+            cd staging
+            zip -r "../AdGuardHomeForRoot_${{ matrix.arch }}.zip" .
+          )
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: AdGuardHomeForRoot_${{ matrix.arch }}
+          path: AdGuardHomeForRoot_${{ matrix.arch }}.zip
+          if-no-files-found: error
+
+  release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: package
+    if: startsWith(github.ref, 'refs/tags/')
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate tag format
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ ! "${GITHUB_REF_NAME}" =~ ^[0-9]{8}$ ]]; then
+            echo "Tag must be an 8-digit date (YYYYMMDD), got: ${GITHUB_REF_NAME}" >&2
+            exit 1
+          fi
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: AdGuardHomeForRoot_*
+          merge-multiple: true
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          body_path: changelog.md
+          files: |
+            AdGuardHomeForRoot_arm64.zip
+            AdGuardHomeForRoot_armv7.zip

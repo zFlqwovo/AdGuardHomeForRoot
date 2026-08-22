@@ -6,7 +6,7 @@ ip6tables_w="ip6tables -w 64"
 
 check_ipv6_nat_support() {
   if ! $ip6tables_w -t nat -L >/dev/null 2>&1; then
-    log "IPv6 NAT: 不支持" "IPv6 NAT: not supported"
+    # IPv6 NAT is not supported, we cannot use REDIRECT target
     return 1
   fi
 
@@ -17,51 +17,57 @@ check_ipv6_nat_support() {
   fi
 
   if $redirect_ok; then
-    log "IPv6 NAT: 支持（REDIRECT）" "IPv6 NAT: supported (REDIRECT)"
+    # IPv6 NAT is supported, we can use REDIRECT target
     return 0
   else
-    log "IPv6 NAT: 不支持" "IPv6 NAT: not supported"
+    # IPv6 NAT is not supported, we cannot use REDIRECT target
     return 1
   fi
 }
 
-enable_iptables() {
-  if $iptables_w -t nat -L ADGUARD_REDIRECT_DNS >/dev/null 2>&1; then
-    log "ADGUARD_REDIRECT_DNS chain already exists" "ADGUARD_REDIRECT_DNS 链已经存在"
-    if ! $iptables_w -t nat -C OUTPUT -j ADGUARD_REDIRECT_DNS >/dev/null 2>&1; then
-      $iptables_w -t nat -I OUTPUT -j ADGUARD_REDIRECT_DNS
+enable_iptables_chain() {
+  local iptables_cmd=$1
+  local chain_name=$2
+
+  if $iptables_cmd -t nat -L $chain_name >/dev/null 2>&1; then
+    log "$chain_name chain already exists" "$chain_name 链已经存在"
+    if ! $iptables_cmd -t nat -C OUTPUT -j $chain_name >/dev/null 2>&1; then
+      $iptables_cmd -t nat -I OUTPUT -j $chain_name
     fi
     return 0
   fi
 
-  log "Creating ADGUARD_REDIRECT_DNS chain and adding rules" "创建 ADGUARD_REDIRECT_DNS 链并添加规则"
-  $iptables_w -t nat -N ADGUARD_REDIRECT_DNS || return 1
-  $iptables_w -t nat -A ADGUARD_REDIRECT_DNS -m owner --uid-owner $adg_user --gid-owner $adg_group -j RETURN || return 1
+  log "Creating $chain_name chain and adding rules" "创建 $chain_name 链并添加规则"
+  $iptables_cmd -t nat -N $chain_name || return 1
+  $iptables_cmd -t nat -A $chain_name -m owner --uid-owner $adg_user --gid-owner $adg_group -j RETURN || return 1
 
   for subnet in $ignore_dest_list; do
-    if ! $iptables_w -t nat -A ADGUARD_REDIRECT_DNS -d $subnet -j RETURN >/dev/null 2>&1; then
+    if ! $iptables_cmd -t nat -A $chain_name -d $subnet -j RETURN >/dev/null 2>&1; then
       log "Warning: Failed to add bypass for $subnet (DNS resolution likely failed)" "警告：无法为 $subnet 添加绕过规则（可能由于 DNS 解析失败）"
     fi
   done
 
   for subnet in $ignore_src_list; do
-    if ! $iptables_w -t nat -A ADGUARD_REDIRECT_DNS -s $subnet -j RETURN >/dev/null 2>&1; then
+    if ! $iptables_cmd -t nat -A $chain_name -s $subnet -j RETURN >/dev/null 2>&1; then
       log "Warning: Failed to add bypass for source $subnet" "警告：无法为源 $subnet 添加绕过规则"
     fi
   done
 
-  $iptables_w -t nat -A ADGUARD_REDIRECT_DNS -p udp --dport 53 -j REDIRECT --to-ports $redir_port || return 1
-  $iptables_w -t nat -A ADGUARD_REDIRECT_DNS -p tcp --dport 53 -j REDIRECT --to-ports $redir_port || return 1
-  $iptables_w -t nat -I OUTPUT -j ADGUARD_REDIRECT_DNS || return 1
+  $iptables_cmd -t nat -A $chain_name -p udp --dport 53 -j REDIRECT --to-ports $redir_port || return 1
+  $iptables_cmd -t nat -A $chain_name -p tcp --dport 53 -j REDIRECT --to-ports $redir_port || return 1
+  $iptables_cmd -t nat -I OUTPUT -j $chain_name || return 1
 
   log "Applied iptables rules successfully" "成功应用 iptables 规则"
 }
 
-disable_iptables() {
-  log "Deleting ADGUARD_REDIRECT_DNS chain and rules" "删除 ADGUARD_REDIRECT_DNS 链及规则"
-  $iptables_w -t nat -D OUTPUT -j ADGUARD_REDIRECT_DNS >/dev/null 2>&1
-  $iptables_w -t nat -F ADGUARD_REDIRECT_DNS >/dev/null 2>&1
-  $iptables_w -t nat -X ADGUARD_REDIRECT_DNS >/dev/null 2>&1
+disable_iptables_chain() {
+  local iptables_cmd=$1
+  local chain_name=$2
+
+  log "Deleting $chain_name chain and rules" "删除 $chain_name 链及规则"
+  $iptables_cmd -t nat -D OUTPUT -j $chain_name >/dev/null 2>&1
+  $iptables_cmd -t nat -F $chain_name >/dev/null 2>&1
+  $iptables_cmd -t nat -X $chain_name >/dev/null 2>&1
   return 0
 }
 
@@ -97,35 +103,7 @@ enable_ipv6_iptables() {
     return 0
   fi
 
-  if $ip6tables_w -t nat -L ADGUARD_REDIRECT_DNS6 >/dev/null 2>&1; then
-    log "ADGUARD_REDIRECT_DNS6 chain already exists" "ADGUARD_REDIRECT_DNS6 链已经存在"
-    if ! $ip6tables_w -t nat -C OUTPUT -j ADGUARD_REDIRECT_DNS6 >/dev/null 2>&1; then
-      $ip6tables_w -t nat -I OUTPUT -j ADGUARD_REDIRECT_DNS6
-    fi
-    return 0
-  fi
-
-  log "Creating ADGUARD_REDIRECT_DNS6 chain and adding rules" "创建 ADGUARD_REDIRECT_DNS6 链并添加规则"
-  $ip6tables_w -t nat -N ADGUARD_REDIRECT_DNS6 || return 1
-  $ip6tables_w -t nat -A ADGUARD_REDIRECT_DNS6 -m owner --uid-owner $adg_user --gid-owner $adg_group -j RETURN || return 1
-
-  for subnet in $ignore_dest_list; do
-    if ! $ip6tables_w -t nat -A ADGUARD_REDIRECT_DNS6 -d $subnet -j RETURN >/dev/null 2>&1; then
-      log "Warning: Failed to add ipv6 bypass for $subnet" "警告：无法为 $subnet 添加 ipv6 绕过规则"
-    fi
-  done
-
-  for subnet in $ignore_src_list; do
-    if ! $ip6tables_w -t nat -A ADGUARD_REDIRECT_DNS6 -s $subnet -j RETURN >/dev/null 2>&1; then
-      log "Warning: Failed to add ipv6 bypass for source $subnet" "警告：无法为源 $subnet 添加 ipv6 绕过规则"
-    fi
-  done
-
-  $ip6tables_w -t nat -A ADGUARD_REDIRECT_DNS6 -p udp --dport 53 -j REDIRECT --to-ports $redir_port || return 1
-  $ip6tables_w -t nat -A ADGUARD_REDIRECT_DNS6 -p tcp --dport 53 -j REDIRECT --to-ports $redir_port || return 1
-  $ip6tables_w -t nat -I OUTPUT -j ADGUARD_REDIRECT_DNS6 || return 1
-
-  log "Applied ipv6 iptables rules successfully" "成功应用 ipv6 iptables 规则"
+  enable_iptables_chain "$ip6tables_w" "ADGUARD_REDIRECT_DNS6"
 }
 
 disable_ipv6_iptables() {
@@ -134,18 +112,14 @@ disable_ipv6_iptables() {
     return 0
   fi
 
-  log "Deleting ADGUARD_REDIRECT_DNS6 chain and rules" "删除 ADGUARD_REDIRECT_DNS6 链及规则"
-  $ip6tables_w -t nat -D OUTPUT -j ADGUARD_REDIRECT_DNS6 >/dev/null 2>&1
-  $ip6tables_w -t nat -F ADGUARD_REDIRECT_DNS6 >/dev/null 2>&1
-  $ip6tables_w -t nat -X ADGUARD_REDIRECT_DNS6 >/dev/null 2>&1
-  return 0
+  disable_iptables_chain "$ip6tables_w" "ADGUARD_REDIRECT_DNS6"
 }
 
 case "$1" in
 enable)
-  log "Enabling iptables and ipv6 DNS blocking if configured" "启用 iptables"
-  enable_iptables || exit 1
-  
+  log "Enabling iptables and ipv6 DNS blocking if configured" "启用 iptables 和 ipv6 DNS 阻断（如果已配置）"
+  enable_iptables_chain "$iptables_w" "ADGUARD_REDIRECT_DNS" || exit 1
+
   if [ "$block_ipv6_dns" = true ]; then
     log "IPv6 DNS mode: block (DROP IPv6 DNS traffic)" "IPv6 DNS 模式: block (丢弃 IPv6 DNS 流量)"
     add_block_ipv6_dns || exit 1
@@ -156,8 +130,8 @@ enable)
   ;;
 disable)
   log "Disabling iptables and ipv6 DNS blocking" "禁用 iptables 和 ipv6 DNS 阻断"
-  disable_iptables || exit 1
-  
+  disable_iptables_chain "$iptables_w" "ADGUARD_REDIRECT_DNS" || exit 1
+
   del_block_ipv6_dns || exit 1
   disable_ipv6_iptables || exit 1
   ;;

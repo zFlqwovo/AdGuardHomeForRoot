@@ -20,8 +20,8 @@ start_adguardhome() {
 
   # to fix https://github.com/AdguardTeam/AdGuardHome/issues/7002
   export SSL_CERT_DIR="/system/etc/security/cacerts/"
-  # set timezone to Shanghai
-  export TZ="Asia/Shanghai"
+  # set timezone
+  export TZ="$timezone"
 
   # backup old log and overwrite new log
   if [ -f "$AGH_DIR/bin.log" ]; then
