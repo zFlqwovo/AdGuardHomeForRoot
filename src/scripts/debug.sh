@@ -69,8 +69,8 @@ LOG="$AGH_DIR/debug.log"
   iptables -t nat -L -n -v
   echo
 
-  echo "== ip6tables -t filter -L -n -v =="
-  ip6tables -t filter -L -n -v
+  echo "== ip6tables -t nat -L -n -v =="
+  ip6tables -t nat -L -n -v
   echo
 
   echo "== Network Interfaces =="
