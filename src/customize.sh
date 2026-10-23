@@ -62,10 +62,15 @@ extract_all() {
 }
 
 if [ -d "$AGH_DIR" ]; then
-  info "- ⏹️ Found old version, stopping all AdGuardHome processes..." "- ⏹️ 发现旧版模块，正在停止所有 AdGuardHome 进程..."
-  pkill -f "AdGuardHome" || pkill -9 -f "AdGuardHome" 
+  info "- 🧹 Removing DNS redirect rules before upgrade..." "- 🧹 升级前先撤销 DNS 重定向规则..."
+  if [ -f "$SCRIPT_DIR/iptables.sh" ]; then
+    sh "$SCRIPT_DIR/iptables.sh" disable >/dev/null 2>&1 || true
+  fi
 
-  for i in 1 2 3 4 5; do
+  info "- ⏹️ Found old version, stopping all AdGuardHome processes..." "- ⏹️ 发现旧版模块，正在停止所有 AdGuardHome 进程..."
+  pkill -f "AdGuardHome" || pkill -9 -f "AdGuardHome"
+
+  for i in 1 2 3; do
   pgrep -f "AdGuardHome" >/dev/null 2>&1 || break
   sleep 1
   done

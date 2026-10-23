@@ -4,4 +4,4 @@ done
 
 /data/adb/agh/scripts/tool.sh start
 
-inotifyd /data/adb/agh/scripts/inotify.sh /data/adb/modules/AdGuardHome:d,n &
+inotifyd /data/adb/agh/scripts/inotify.sh /data/adb/modules/AdGuardHome:dn &
