@@ -30,15 +30,12 @@ enable_iptables_chain() {
   local chain_name=$2
 
   if $iptables_cmd -t nat -L $chain_name >/dev/null 2>&1; then
-    log "$chain_name chain already exists" "$chain_name 链已经存在"
-    if ! $iptables_cmd -t nat -C OUTPUT -j $chain_name >/dev/null 2>&1; then
-      $iptables_cmd -t nat -I OUTPUT -j $chain_name
-    fi
-    return 0
+    $iptables_cmd -t nat -F $chain_name || return 1
+  else
+    $iptables_cmd -t nat -N $chain_name || return 1
   fi
 
-  log "Creating $chain_name chain and adding rules" "创建 $chain_name 链并添加规则"
-  $iptables_cmd -t nat -N $chain_name || return 1
+  log "Applying $chain_name rules" "正在应用 $chain_name 规则"
   $iptables_cmd -t nat -A $chain_name -m owner --uid-owner $adg_user --gid-owner $adg_group -j RETURN || return 1
 
   for subnet in $ignore_dest_list; do
@@ -55,6 +52,8 @@ enable_iptables_chain() {
 
   $iptables_cmd -t nat -A $chain_name -p udp --dport 53 -j REDIRECT --to-ports $redir_port || return 1
   $iptables_cmd -t nat -A $chain_name -p tcp --dport 53 -j REDIRECT --to-ports $redir_port || return 1
+
+  while $iptables_cmd -t nat -D OUTPUT -j $chain_name >/dev/null 2>&1; do :; done
   $iptables_cmd -t nat -I OUTPUT -j $chain_name || return 1
 
   log "Applied iptables rules successfully" "成功应用 iptables 规则"
@@ -64,8 +63,9 @@ disable_iptables_chain() {
   local iptables_cmd=$1
   local chain_name=$2
 
+  $iptables_cmd -t nat -L $chain_name >/dev/null 2>&1 || return 0
   log "Deleting $chain_name chain and rules" "删除 $chain_name 链及规则"
-  $iptables_cmd -t nat -D OUTPUT -j $chain_name >/dev/null 2>&1
+  while $iptables_cmd -t nat -D OUTPUT -j $chain_name >/dev/null 2>&1; do :; done
   $iptables_cmd -t nat -F $chain_name >/dev/null 2>&1
   $iptables_cmd -t nat -X $chain_name >/dev/null 2>&1
   return 0
@@ -73,15 +73,12 @@ disable_iptables_chain() {
 
 add_block_ipv6_dns() {
   if $ip6tables_w -t filter -L ADGUARD_BLOCK_DNS >/dev/null 2>&1; then
-    log "ADGUARD_BLOCK_DNS chain already exists" "ADGUARD_BLOCK_DNS 链已经存在"
-    if ! $ip6tables_w -t filter -C OUTPUT -j ADGUARD_BLOCK_DNS >/dev/null 2>&1; then
-      $ip6tables_w -t filter -I OUTPUT -j ADGUARD_BLOCK_DNS
-    fi
-    return 0
+    $ip6tables_w -t filter -F ADGUARD_BLOCK_DNS || return 1
+  else
+    $ip6tables_w -t filter -N ADGUARD_BLOCK_DNS || return 1
   fi
 
-  log "Creating ADGUARD_BLOCK_DNS chain and adding rules" "创建 ADGUARD_BLOCK_DNS 链并添加规则"
-  $ip6tables_w -t filter -N ADGUARD_BLOCK_DNS || return 1
+  log "Applying ADGUARD_BLOCK_DNS rules" "正在应用 ADGUARD_BLOCK_DNS 规则"
 
   # Reject rather than drop. A silently dropped query leaves the client waiting
   # out its full timeout before retrying over IPv4, which surfaces as random
@@ -96,14 +93,16 @@ add_block_ipv6_dns() {
     $ip6tables_w -t filter -A ADGUARD_BLOCK_DNS -p tcp --dport 53 -j DROP || return 1
   fi
 
+  while $ip6tables_w -t filter -D OUTPUT -j ADGUARD_BLOCK_DNS >/dev/null 2>&1; do :; done
   $ip6tables_w -t filter -I OUTPUT -j ADGUARD_BLOCK_DNS || return 1
 
   log "Applied ipv6 iptables rules successfully" "成功应用 ipv6 iptables 规则"
 }
 
 del_block_ipv6_dns() {
+  $ip6tables_w -t filter -L ADGUARD_BLOCK_DNS >/dev/null 2>&1 || return 0
   log "Deleting ADGUARD_BLOCK_DNS chain and rules" "删除 ADGUARD_BLOCK_DNS 链及规则"
-  $ip6tables_w -t filter -D OUTPUT -j ADGUARD_BLOCK_DNS >/dev/null 2>&1
+  while $ip6tables_w -t filter -D OUTPUT -j ADGUARD_BLOCK_DNS >/dev/null 2>&1; do :; done
   $ip6tables_w -t filter -F ADGUARD_BLOCK_DNS >/dev/null 2>&1
   $ip6tables_w -t filter -X ADGUARD_BLOCK_DNS >/dev/null 2>&1
   return 0
@@ -119,17 +118,19 @@ enable_ipv6_iptables() {
 }
 
 disable_ipv6_iptables() {
-  if ! check_ipv6_nat_support; then
-    log "IPv6 NAT is not supported, skipping IPv6 DNS hijack cleanup" "IPv6 NAT 不支持，跳过 IPv6 DNS 劫持清理"
-    return 0
-  fi
-
   disable_iptables_chain "$ip6tables_w" "ADGUARD_REDIRECT_DNS6"
+}
+
+disable_all() {
+  disable_iptables_chain "$iptables_w" "ADGUARD_REDIRECT_DNS"
+  del_block_ipv6_dns
+  disable_ipv6_iptables
 }
 
 case "$1" in
 enable)
   log "Enabling iptables and ipv6 DNS blocking if configured" "启用 iptables 和 ipv6 DNS 阻断（如果已配置）"
+  disable_all
   enable_iptables_chain "$iptables_w" "ADGUARD_REDIRECT_DNS" || exit 1
 
   if [ "$block_ipv6_dns" = true ]; then
@@ -142,10 +143,7 @@ enable)
   ;;
 disable)
   log "Disabling iptables and ipv6 DNS blocking" "禁用 iptables 和 ipv6 DNS 阻断"
-  disable_iptables_chain "$iptables_w" "ADGUARD_REDIRECT_DNS" || exit 1
-
-  del_block_ipv6_dns || exit 1
-  disable_ipv6_iptables || exit 1
+  disable_all
   ;;
 *)
   echo "Usage: $0 {enable|disable}"

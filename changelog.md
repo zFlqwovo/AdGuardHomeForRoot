@@ -4,6 +4,7 @@
 
 - 修复 `disable` 文件热切换：toybox `inotifyd` 不接受 `:d,n` 中的逗号（`bad mask ','`），watcher 开机即退；改为 `:dn`
 - 升级/卸载改为 fail-open：先撤销 iptables 规则再停止核心，升级中途失败不再导致断网
+- iptables 启用时先清理本模块旧链，再按当前 settings 重建（修复改端口 / 切换 IPv6 模式后的规则残留）
 - `settings.conf` 新增键在启动时自动补默认值（`block_ipv6_dns` 迁移值为 `false`），不覆盖用户已设置的值
 - 自动发版仅构建并发布 arm64（移除 armv7 构建）
 - Auto-release builds and publishes arm64 only
