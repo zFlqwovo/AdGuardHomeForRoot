@@ -40,7 +40,6 @@ package() {
 }
 
 package "arm64"
-package "armv7"
 
 cd output
 sha256sum *.zip | tee checksums.txt

@@ -56,7 +56,7 @@ To reset the configuration, delete the two files above before upgrading. This fo
 
 | File | Purpose | Notes |
 | --- | --- | --- |
-| `build.sh` | this fork's release script | downloads the latest AGH + FAK-DNS, builds arm64/armv7 zips and `output/checksums.txt` |
+| `build.sh` | this fork's release script | downloads the latest AGH + FAK-DNS, builds the arm64 zip and `output/checksums.txt` |
 | `.github/workflows/update.yml` | automated release | checks FAK-DNS daily; on change (or manual dispatch) bumps `versionCode`, builds and releases |
 | `pack.sh` (upstream) | generic packaging | **does not download FAK-DNS**; the resulting module's AGH will not start. Prefer `build.sh` |
 | `.github/workflows/pack.yml` (upstream) | tag-based build | triggered by `[0-9]*`, but validates an 8-digit date and does not include FAK-DNS; not this fork's release path |
@@ -66,8 +66,7 @@ To reset the configuration, delete the two files above before upgrading. This fo
 
 - `updateJson` in `src/module.prop` and `version.json` go through the `https://gh.2719233.xyz/` proxy
   (to make `raw.githubusercontent.com` reachable). Change them to direct GitHub URLs if you prefer.
-- `zipUrl` in `version.json` **always points to the arm64 zip**. armv7 users must download
-  `AdGuardHomeForRoot_armv7.zip` manually instead of using the in-manager updater.
+- This fork publishes the arm64 zip only; armv7 builds are no longer provided.
 
 ## 5. Known limitations
 

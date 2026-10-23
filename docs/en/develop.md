@@ -40,8 +40,8 @@ This fork's release script is `build.sh`:
 It:
 
 1. downloads the FAK-DNS rules to `src/bin/data/FAK-DNS.txt`;
-2. downloads the latest AdGuardHome (arm64 / armv7);
-3. packs `output/AdGuardHomeForRoot_<arch>.zip`;
+2. downloads the latest AdGuardHome (arm64);
+3. packs `output/AdGuardHomeForRoot_arm64.zip`;
 4. writes `output/checksums.txt`.
 
 Requires `curl`, `tar` and `zip`. Note that `src/bin/data/FAK-DNS.txt` is a build artifact and is not committed.

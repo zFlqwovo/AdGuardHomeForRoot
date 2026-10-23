@@ -57,7 +57,7 @@ dns:
 
 | 文件 | 用途 | 备注 |
 | --- | --- | --- |
-| `build.sh` | 本 fork 的发布脚本 | 下载最新 AGH + FAK-DNS，打 arm64/armv7 两个包，生成 `output/checksums.txt` |
+| `build.sh` | 本 fork 的发布脚本 | 下载最新 AGH + FAK-DNS，打 arm64 包，生成 `output/checksums.txt` |
 | `.github/workflows/update.yml` | 自动发版 | 每天检查 FAK-DNS 是否变化；变化或手动触发时 bump `versionCode`、构建并发布 |
 | `pack.sh`（上游） | 通用打包 | **不会下载 FAK-DNS**，用它打出的包 AGH 无法启动；请优先用 `build.sh` |
 | `.github/workflows/pack.yml`（上游） | 手动 tag 构建 | 触发条件是 `[0-9]*`，但校验要求 8 位日期，且不带 FAK-DNS；不是本 fork 的发布路径 |
@@ -67,8 +67,7 @@ dns:
 
 - `src/module.prop` 的 `updateJson` 与 `version.json` 走 `https://gh.2719233.xyz/` 反代
   （便于访问 `raw.githubusercontent.com`）。如介意，可改成直连 GitHub。
-- `version.json` 的 `zipUrl` **固定指向 arm64 包**。armv7 设备请手动下载
-  `AdGuardHomeForRoot_armv7.zip`，不要使用管理器内的更新。
+- 本 fork 只发布 arm64 包，不再提供 armv7 构建。
 
 ## 5. 已知限制
 

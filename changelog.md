@@ -5,6 +5,8 @@
 - 修复 `disable` 文件热切换：toybox `inotifyd` 不接受 `:d,n` 中的逗号（`bad mask ','`），watcher 开机即退；改为 `:dn`
 - 升级/卸载改为 fail-open：先撤销 iptables 规则再停止核心，升级中途失败不再导致断网
 - `settings.conf` 新增键在启动时自动补默认值（`block_ipv6_dns` 迁移值为 `false`），不覆盖用户已设置的值
+- 自动发版仅构建并发布 arm64（移除 armv7 构建）
+- Auto-release builds and publishes arm64 only
 - 文档补充 fork 专属说明（FAK-DNS、强制保留配置、pack.sh / pack.ps1 现状），并修正被上游文档覆盖的 3 处不符
 
 ## 2026-10-23 同步上游 / Sync with upstream

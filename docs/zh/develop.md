@@ -40,8 +40,8 @@
 它会：
 
 1. 下载 FAK-DNS 规则到 `src/bin/data/FAK-DNS.txt`；
-2. 下载最新 AdGuardHome（arm64 / armv7）；
-3. 打包 `output/AdGuardHomeForRoot_<arch>.zip`；
+2. 下载最新 AdGuardHome（arm64）；
+3. 打包 `output/AdGuardHomeForRoot_arm64.zip`；
 4. 生成 `output/checksums.txt`。
 
 需要 `curl`、`tar`、`zip`。注意 `src/bin/data/FAK-DNS.txt` 是构建产物，不会提交到仓库。

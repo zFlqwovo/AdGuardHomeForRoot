@@ -5,11 +5,11 @@
 ## 系统要求
 
 - 设备已 root，且已安装 [Magisk](https://github.com/topjohnwu/Magisk) / [KernelSU](https://github.com/tiann/KernelSU) / [APatch](https://github.com/bmax121/APatch) 之一
-- 模块提供 arm64 与 armv7 两个版本，一般推荐 **arm64**：性能更优，且与大多数现代设备兼容
+- 模块仅提供 **arm64** 版本
 
 ## 安装步骤
 
-1. 前往本仓库的 [Release](https://github.com/zFlqwovo/AdGuardHomeForRoot/releases/latest) 页面下载对应架构的 zip 文件
+1. 前往本仓库的 [Release](https://github.com/zFlqwovo/AdGuardHomeForRoot/releases/latest) 页面下载 arm64 zip 文件
 2. 打开 **设置 -> 网络和互联网 -> 高级 -> 私人 DNS**，将其关闭（原因见 [常见问题](faq.md)）
 3. 在 root 管理器中安装模块，完成后重启设备
 4. 模块启动成功后，可访问 <http://127.0.0.1:3000> 进入 [AdGuardHome 后台](configuration.md#1-adguardhome-后台)，默认账号和密码均为 `root`；建议首次登录后在模块 Web UI 的“密码计算”页修改

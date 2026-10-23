@@ -72,7 +72,7 @@ See [Coexistence with proxy software](proxy.md) for the full setup.
 **A:**
 
 - The impact is small, but you may notice a slight delay on low-end devices.
-- The **arm64** build is recommended for better performance.
+- Only the **arm64** build is provided.
 
 ### **Q: I cannot access Google after enabling the module. What should I do?**
 
