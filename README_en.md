@@ -4,7 +4,7 @@ English | [简体中文](README.md)
 
 ![arm-64 support](https://img.shields.io/badge/arm--64-support-ef476f?logo=linux&logoColor=white&color=ef476f)
 ![arm-v7 support](https://img.shields.io/badge/arm--v7-support-ffa500?logo=linux&logoColor=white&color=ffa500)
-![GitHub downloads](https://img.shields.io/github/downloads/twoone-3/AdGuardHomeForRoot/total?logo=github&logoColor=white&color=ffd166)
+![GitHub downloads](https://img.shields.io/github/downloads/zFlqwovo/AdGuardHomeForRoot/total?logo=github&logoColor=white&color=ffd166)
 ![License](https://img.shields.io/badge/License-MIT-9b5de5?logo=opensourceinitiative&logoColor=white)
 [![Docs](https://img.shields.io/badge/Docs-Guide-0066ff?logo=book&logoColor=white)](docs/index.md)
 [![Join Telegram Channel](https://img.shields.io/badge/Telegram-Join%20Channel-06d6a0?logo=telegram&logoColor=white)](https://t.me/twoone3_tech_tips)
@@ -20,6 +20,8 @@ Follow our channel for the latest news, or join our group for discussion!
 - The design of this module aims to provide a lightweight ad-blocking solution, avoiding the complexity and performance loss associated with using VPNs.
 - It can coexist with other proxy software (such as [NekoBox](https://github.com/MatsuriDayo/NekoBoxForAndroid), [FlClash](https://github.com/chen08209/FlClash), [box for magisk](https://github.com/taamarin/box_for_magisk), [akashaProxy](https://github.com/akashaProxy/akashaProxy)), providing better privacy protection and network security.
 
+> This repository is a fork of [twoone-3/AdGuardHomeForRoot](https://github.com/twoone-3/AdGuardHomeForRoot). DNS upstream, upgrade policy, build and update-channel differences are documented in [docs/en/fork.md](docs/en/fork.md).
+
 ## Features
 
 - Optionally forward local DNS requests to the local AdGuardHome server
@@ -28,7 +30,7 @@ Follow our channel for the latest news, or join our group for discussion!
 
 ## Quick Start
 
-1. Go to the [Release](https://github.com/twoone-3/AdGuardHomeForRoot/releases/latest) page to download the module
+1. Go to this repository's [Release](https://github.com/zFlqwovo/AdGuardHomeForRoot/releases/latest) page to download the module
 2. Check Android Settings -> Network & Internet -> Advanced -> Private DNS, ensure `Private DNS` is turned off
 3. Install the module in the root manager and reboot the device
 4. If you see a successful module running prompt, you can access <http://127.0.0.1:3000> to open the AdGuardHome web UI, default username and password are root/root

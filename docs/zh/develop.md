@@ -12,56 +12,61 @@
 │   ├── bin/              # AdGuardHome.yaml 与其它运行所需文件
 │   ├── scripts/          # tool.sh / iptables.sh / inotify.sh / debug.sh / base.sh
 │   ├── webroot/          # 模块管理页 (Web UI)
-│   ├── customize.sh      # 安装脚本（含保留/备份配置逻辑）
+│   ├── customize.sh      # 安装脚本（升级时强制保留配置，先撤规则再停核心）
 │   ├── service.sh        # 开机启动
 │   ├── action.sh         # root 管理器 action 按钮
-│   ├── uninstall.sh      # 卸载脚本
+│   ├── uninstall.sh      # 卸载脚本（先停核心/撤规则，再删除数据）
 │   ├── settings.conf     # 模块配置
 │   ├── module.prop       # 模块信息
 │   └── META-INF/         # 安装器
 ├── docs/                 # 用户文档（index.md 为索引，zh/ 与 en/ 分别为中英文）
-├── cache/                # 打包缓存与输出（已被 .gitignore 忽略）
-├── pack.ps1              # Windows 打包脚本
-├── pack.sh               # Linux / macOS / CI 打包脚本
+├── cache/                # 打包缓存（已被 .gitignore 忽略）
+├── output/               # 打包产物（build.sh 生成）
+├── build.sh              # 本 fork 的发布脚本（会额外下载 FAK-DNS.txt）
+├── pack.sh               # 上游的通用打包脚本（不下载 FAK-DNS）
+├── pack.ps1              # 当前为注释状态，不可用
 ├── version.json          # 版本与更新信息
 └── changelog.md          # 当前版本的更新说明（同时作为 Release 正文）
 ```
 
 ## 本地打包
 
-`pack.ps1`（Windows）与 `pack.sh`（Linux / macOS / CI）逻辑一致：下载并缓存最新版 AdGuardHome，与 `src/` 一起打包成模块 ZIP，CI 打包同样复用 `pack.sh`。
-
-Windows（需要已安装 7-Zip，脚本会调用 `C:\Program Files\7-Zip\7z.exe`）：
-
-```powershell
-.\pack.ps1
-```
-
-Linux / macOS（需要 `curl` 或 `wget`、`tar`，以及 `zip`、`7z`/`7za`、`python3` 三者之一）：
+本 fork 的发布脚本是 `build.sh`：
 
 ```shell
-./pack.sh          # 打包 arm64 + armv7
-./pack.sh arm64    # 仅打包 arm64
-./pack.sh armv7    # 仅打包 armv7
+./build.sh
 ```
 
-运行脚本后会自动完成：
+它会：
 
-1. 创建 `cache` 目录（如果尚未存在）。
-2. 下载并缓存最新版本的 AdGuardHome（仅在 `cache` 目录中未找到缓存时执行下载）。
-3. 将 AdGuardHome 与 `src/` 的内容打包成 ZIP（输出至 `cache/AdGuardHomeForRoot_<arch>.zip`）。
+1. 下载 FAK-DNS 规则到 `src/bin/data/FAK-DNS.txt`；
+2. 下载最新 AdGuardHome（arm64 / armv7）；
+3. 打包 `output/AdGuardHomeForRoot_<arch>.zip`；
+4. 生成 `output/checksums.txt`。
 
-产物 ZIP 的结构与 `src/` 一致，AdGuardHome 二进制位于 `bin/AdGuardHome`。脚本具有缓存机制：如果 `cache` 目录中已存在 AdGuardHome 的缓存版本，则不会重复下载，从而节省时间和带宽。
+需要 `curl`、`tar`、`zip`。注意 `src/bin/data/FAK-DNS.txt` 是构建产物，不会提交到仓库。
+
+`pack.sh`（上游）也可以打包，但它**不会**下载 FAK-DNS.txt；产物里的 AGH 会因 `upstream_dns_file`
+缺失而启动失败。除非你手动把 FAK-DNS 放进 `src/bin/data/`，否则请用 `build.sh`。
+
+`pack.ps1` 目前整个文件被注释，不能使用；Windows 下请在 WSL / Git Bash 中运行 `bash build.sh`。
+
+> 维护提示：在 `settings.conf` 中新增键时，请同时在 `scripts/base.sh` 的 `setting_default` 列表里加一行，
+> 这样老用户升级后会自动补上默认值。
 
 ## CI 与发版
 
-推送形如 `YYYYMMDD` 的 tag 会触发 [`pack.yml`](../../.github/workflows/pack.yml)：
+本 fork 的自动发版是 [`update.yml`](../../.github/workflows/update.yml)：
 
-1. 校验 tag 必须为 8 位日期（`YYYYMMDD`）
-2. 以矩阵方式调用 `pack.sh arm64` / `pack.sh armv7` 构建两个架构的包
-3. 自动创建 GitHub Release，正文取自 `changelog.md`，附件为两个 ZIP
+1. 每天 23:00 UTC（北京时间 07:00）检查 FAK-DNS 的 SHA256 是否变化；
+2. 有变化（或手动 `workflow_dispatch`）时：`versionCode + 1`、`version=YYYYMMDD`；
+3. 调用 `build.sh` 构建，提交 `.upstream_hash` / `module.prop` / `version.json`；
+4. 创建形如 `20261023_v146` 的 Release，附两个 zip 与 `checksums.txt`。
 
-发版前请同步更新以下文件：
+`pack.yml`（上游）只在手动推送 `[0-9]*` tag 时运行，且校验 tag 必须是 8 位日期、调用 `pack.sh`（不带 FAK-DNS）；
+它不是本 fork 的发布路径。
+
+手动发版时请同步更新：
 
 - `version.json`：`versionCode` 递增，`version` 使用 `YYYYMMDD`
 - `src/module.prop`：`version` 与 `versionCode`

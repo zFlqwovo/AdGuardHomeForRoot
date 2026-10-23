@@ -15,6 +15,7 @@ The module requires a rooted Android device and works with Magisk, KernelSU and 
 | [与代理软件共存](zh/proxy.md) | [Coexistence with proxy software](en/proxy.md) | 与代理应用、代理模块配合使用 / Using the module with proxy apps and proxy modules |
 | [常见问题](zh/faq.md) | [FAQ](en/faq.md) | 安装、密码、性能、拦截规则等高频问题 / Installation, password, performance, custom rules |
 | [开发与打包](zh/develop.md) | [Development and packaging](en/develop.md) | 目录结构、本地打包、CI 与发版、提交规范 / Layout, local packaging, CI, releases, commit style |
+| [本 fork 的差异](zh/fork.md) | [Differences from upstream](en/fork.md) | FAK-DNS 上游、升级保留配置、构建与更新通道 / FAK-DNS upstream, keep-config upgrade, build and update channel |
 
 ## 相关链接 / Links
 

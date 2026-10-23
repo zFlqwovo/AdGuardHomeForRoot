@@ -4,7 +4,7 @@
 
 ## 1. AdGuardHome 后台
 
-模块默认的 AdGuardHome 后台地址为 `http://127.0.0.1:3000`（具体取决于 `AdGuardHome.yaml` 中的 `address` 配置），可以通过浏览器直接访问，默认账号和密码均为 `root`。
+模块默认的 AdGuardHome 后台地址为 `http://127.0.0.1:3000`（具体取决于 `AdGuardHome.yaml` 中的 `address` 配置），可以通过浏览器直接访问，默认账号和密码均为 `root`；建议首次登录后在模块 Web UI 的“密码计算”页修改。
 
 在 AdGuardHome 后台，你可以执行以下操作：
 
@@ -14,7 +14,7 @@
 
 ## 2. 模块管理页 (Web UI)
 
-如果你使用的是 **KernelSU**、**APatch** 或支持 WebUI 的 **Magisk** 版本，可以通过点击模块列表中的“管理”按钮进入图形化配置界面。
+如果你使用的是 **KernelSU**、**APatch**，或支持模块 Web UI 的管理器，可以通过点击模块列表中的“管理”按钮进入图形化配置界面。
 
 在模块管理页中，你可以：
 
@@ -23,7 +23,7 @@
 - **服务控制**：支持一键“启动”、“停止”、“重启”核心服务。
 - **日志查看**：内置实时高亮的“核心日志”与“模块运行历史”查看器。
 - **维护工具**：支持一键导出调试日志，并可直接调用系统文件查看器打开生成的 `debug.log`。
-- **密码计算**：在“密码计算”分页中把明文密码转换为 `AdGuardHome.yaml` 所需的 bcrypt 哈希，可一键复制或直接写回配置文件（写入前自动备份为 `.bak`，写入后需重启核心才会生效）。该分页自模块版本 `20261016`（versionCode 54）起提供。
+- **密码计算**：在“密码计算”分页中把明文密码转换为 `AdGuardHome.yaml` 所需的 bcrypt 哈希，可一键复制或直接写回配置文件（写入前自动备份为 `.bak`，写入后需重启核心才会生效）。本 fork 已包含该分页。
 
 如果你更倾向于使用独立 App 管理 AdGuardHome 核心，可以尝试使用 [AdGuard Home Manager](https://github.com/JGeek00/adguard-home-manager) 应用。
 
@@ -55,5 +55,6 @@
 
 - **`/data/adb/agh/bin/AdGuardHome.yaml`**：AdGuardHome 的主配置文件（后台地址、DNS 端口、上游、规则等）。
 - **`/data/adb/agh/settings.conf`**：模块的配置文件，参数说明见 [上一节](#3-settingsconf-参数表)。
+- **`/data/adb/agh/bin/data/FAK-DNS.txt`**：默认的 DNS 上游文件（构建时下载），说明见 [本 fork 的差异](fork.md#1-dns-上游fak-dnstxt)。
 
-配置的备份与删除行为见 [安装与升级](install.md#升级)。
+本 fork 升级时总是保留配置、不创建 `.bak`；备份与删除行为见 [安装与升级](install.md#升级) 与 [本 fork 的差异](fork.md#2-升级时强制保留配置)。

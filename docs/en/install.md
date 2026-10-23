@@ -9,25 +9,31 @@
 
 ## Installation
 
-1. Download the zip for your architecture from the [Release](https://github.com/twoone-3/AdGuardHomeForRoot/releases/latest) page
+1. Download the zip for your architecture from this repository's [Release](https://github.com/zFlqwovo/AdGuardHomeForRoot/releases/latest) page
 2. Open **Settings -> Network & Internet -> Advanced -> Private DNS** and turn it off (see [FAQ](faq.md))
 3. Install the module in your root manager and reboot the device
-4. Once the module is running, open <http://127.0.0.1:3000> to access the [AdGuardHome panel](configuration.md#1-adguardhome-panel); the default username and password are both `root`
+4. Once the module is running, open <http://127.0.0.1:3000> to access the [AdGuardHome panel](configuration.md#1-adguardhome-panel); the default username and password are both `root` — change them on the module web UI's "Password" tab after the first login
 
 ## Upgrade
 
-Install the new zip over the existing module in your root manager. Because the module keeps your configuration, the installer detects an older installation and asks whether to keep the existing config files:
+Install the new zip over the existing module in your root manager. This fork **always** keeps your configuration:
 
-| Action | Result |
-| --- | --- |
-| Volume Up, or no input within 30 seconds | **Keep** the existing `settings.conf` and `AdGuardHome.yaml` |
-| Volume Down | **Do not keep**: the old files are backed up in place as `settings.conf.bak` and `AdGuardHome.yaml.bak`, then the new defaults are installed |
+- `/data/adb/agh/settings.conf`
+- `/data/adb/agh/bin/AdGuardHome.yaml`
 
-> Note: the backups sit next to the original files (`/data/adb/agh/` and `/data/adb/agh/bin/`), not in a separate backup directory.
+Keys added by a newer version are backfilled on the next start by `scripts/base.sh`; values you have set are never overwritten.
+
+The installer removes the iptables redirect rules before stopping AdGuardHome, so even a broken zip or an
+interrupted install cannot take DNS down. A reboot is required to re-enable filtering after the upgrade.
+
+> This fork has no "volume key: keep or discard config" prompt and does not create `.bak` files.
+> To reset the configuration, delete the two files above before upgrading.
+> See [Differences from upstream](fork.md) for the full list.
 
 ## Uninstall
 
-Removing the module in your root manager deletes the `/data/adb/agh` directory, **including the AdGuardHome configuration, filter rules and all logs**. Back it up first if you want to keep them.
+Removing the module in your root manager first stops AdGuardHome and removes the iptables rules, then deletes
+`/data/adb/agh` (**including the AdGuardHome configuration, filter rules and all logs**). Back it up first if you want to keep them.
 
 ## Ports
 

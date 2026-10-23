@@ -4,7 +4,7 @@
 
 ## 1. AdGuardHome Panel
 
-The default panel address is `http://127.0.0.1:3000` (it depends on the `address` setting in `AdGuardHome.yaml`). Open it in a browser; the default username and password are both `root`.
+The default panel address is `http://127.0.0.1:3000` (it depends on the `address` setting in `AdGuardHome.yaml`). Open it in a browser; the default username and password are both `root` — change them on the module web UI's "Password" tab after the first login.
 
 From the panel you can:
 
@@ -14,7 +14,7 @@ From the panel you can:
 
 ## 2. Module Web UI
 
-If you use **KernelSU**, **APatch**, or a **Magisk** build that supports WebUI, tap the "Manage" button in the module list to open the graphical configuration page.
+If you use **KernelSU**, **APatch**, or a manager that supports module web UIs, tap the "Manage" button in the module list to open the graphical configuration page.
 
 In the module web UI you can:
 
@@ -23,7 +23,7 @@ In the module web UI you can:
 - **Service control**: start, stop and restart the core with one tap.
 - **Logs**: built-in highlighted viewers for the core log and the module run history.
 - **Maintenance**: export a debug bundle with one tap and open the generated `debug.log` with the system file viewer.
-- **Password calculator**: turn a plaintext password into the bcrypt hash required by `AdGuardHome.yaml`; copy it or write it back to the config file (a `.bak` backup is created first, and the core must be restarted for it to take effect). Available since module version `20261016` (versionCode 54).
+- **Password calculator**: turn a plaintext password into the bcrypt hash required by `AdGuardHome.yaml`; copy it or write it back to the config file (a `.bak` backup is created first, and the core must be restarted for it to take effect). This fork includes the tab.
 
 If you prefer a standalone app to manage the AdGuardHome core, try [AdGuard Home Manager](https://github.com/JGeek00/adguard-home-manager).
 
@@ -55,5 +55,7 @@ There are also two configuration files:
 
 - **`/data/adb/agh/bin/AdGuardHome.yaml`**: the main AdGuardHome configuration (panel address, DNS port, upstreams, rules, ...).
 - **`/data/adb/agh/settings.conf`**: the module configuration, documented in [the previous section](#3-settingsconf-reference).
+- **`/data/adb/agh/bin/data/FAK-DNS.txt`**: the default DNS upstream file (downloaded at build time), see [Differences from upstream](fork.md#1-dns-upstream-fak-dnstxt).
 
-How configuration is backed up and deleted is explained in [Installation and upgrade](install.md#upgrade).
+This fork always keeps the configuration on upgrade and does not create `.bak` files; see
+[Installation and upgrade](install.md#upgrade) and [Differences from upstream](fork.md#2-configuration-is-always-kept-on-upgrade).
