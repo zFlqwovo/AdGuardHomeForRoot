@@ -35,3 +35,34 @@ function update_description() {
     sed -i "/^description=/c\description=$description" "$MOD_PATH/module.prop"
   fi
 }
+
+SETTINGS_FILE="$AGH_DIR/settings.conf"
+
+setting_default() {
+  [ -f "$SETTINGS_FILE" ] || return 0
+  local current
+  current=$(sed -n "s/^$1=//p" "$SETTINGS_FILE" 2>/dev/null | tail -n 1)
+  [ -n "$current" ] && return 0
+  if grep -q "^$1=" "$SETTINGS_FILE" 2>/dev/null; then
+    sed -i "s|^$1=.*|$1=$2|" "$SETTINGS_FILE" 2>/dev/null
+  else
+    printf '%s=%s\n' "$1" "$2" >>"$SETTINGS_FILE"
+  fi
+  log "settings.conf: filled default $1=$2" "settings.conf: 已补充默认值 $1=$2"
+}
+
+setting_default enable_iptables true
+setting_default block_ipv6_dns false
+setting_default redir_port 5591
+setting_default startup_timeout 120
+setting_default adg_user root
+setting_default adg_group net_raw
+setting_default timezone Asia/Shanghai
+
+enable_iptables="${enable_iptables:-true}"
+block_ipv6_dns="${block_ipv6_dns:-false}"
+redir_port="${redir_port:-5591}"
+startup_timeout="${startup_timeout:-120}"
+adg_user="${adg_user:-root}"
+adg_group="${adg_group:-net_raw}"
+timezone="${timezone:-Asia/Shanghai}"
